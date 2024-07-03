@@ -7,3 +7,4 @@ Werkzeug
 Flask==3.0.3
 requests
 flask_cors
+gevent
