@@ -17,31 +17,40 @@ def proxy(path):
     headers = dict(request.headers)
     headers['Host'] = TELEGRAPH_URL.replace('https://', '')
     headers['Access-Control-Allow-Origin'] = headers.get('Access-Control-Allow-Origin') or "*"
+    
+    try:
+        response = requests.request(
+            method=request.method,
+            url=url,
+            headers=headers,
+            data=request.get_data(),
+            cookies=request.cookies,
+            allow_redirects=False)
+        
+        # Log response details for debugging
+        app.logger.info(f"Response Status Code: {response.status_code}")
+        app.logger.info(f"Response Content-Type: {response.headers.get('Content-Type')}")
+        app.logger.info(f"First 100 bytes of response: {response.content[:100]}")
+        
+        # Filter out headers not to be forwarded
+        excluded_headers = ['content-length', 'transfer-encoding', 'connection']
+        headers = [(name, value) for (name, value) in response.raw.headers.items()
+                   if name.lower() not in excluded_headers]
+        
+        # Flatten header list to dictionary
+        headers = {name: ", ".join(values) for name, values in headers}
+        
+        return Response(response.content, response.status_code, headers)
+    
+    except requests.RequestException as e:
+        app.logger.error(f"Request error: {str(e)}")
+        return jsonify({"error": "Request to Telegraph failed", "details": str(e)}), 500
+    
+    except Exception as e:
+        app.logger.error(f"Unexpected error: {str(e)}")
+        app.logger.error(traceback.format_exc())
+        return jsonify({"error": "An unexpected error occurred", "details": str(e)}), 500
 
-    response = requests.request(
-        method=request.method,
-        url=url,
-        headers=headers,
-        data=request.get_data(),
-        cookies=request.cookies,
-        allow_redirects=False,
-        stream=False)
-
-    def generate():
-        for chunk in response.iter_content(chunk_size=1024):
-            if chunk:
-                yield chunk
-
-    # Filter out headers not to be forwarded
-    excluded_headers = ['content-length', 'transfer-encoding', 'connection']
-    headers = [(name, value) for (name, value) in response.raw.headers.items()
-               if name.lower() not in excluded_headers]
-
-    # Flatten header list to dictionary
-    headers = {name: ", ".join(values) for name, values in headers}
-
-    #return Response(stream_with_context(generate()), response.status_code)
-    return Response(response.content, response.status_code)
 
 @app.route("/")
 def hello_world():
