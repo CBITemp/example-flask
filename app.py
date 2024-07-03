@@ -21,38 +21,38 @@ def proxy(path):
     headers = dict(request.headers)
     headers['Host'] = TELEGRAPH_URL.replace('https://', '')
     headers['Access-Control-Allow-Origin'] = headers.get('Access-Control-Allow-Origin') or "*"
-
-    response = requests.request(
-        method=request.method,
-        url=url,
-        headers=headers,
-        data=request.get_data(),
-        cookies=request.cookies,
-        allow_redirects=False,
-        stream=True  # Changed to True to handle streaming responses
-    )
-
-    # Filter out headers not to be forwarded
-    excluded_headers = ['content-encoding', 'content-length', 'transfer-encoding', 'connection']
-    headers = [(name, value) for (name, value) in response.raw.headers.items()
-               if name.lower() not in excluded_headers]
-
-    # Decompress if the content is gzipped
-    content = response.content
-    if response.headers.get('Content-Encoding') == 'gzip':
-        content = gzip.decompress(content)
-
-    # Decode content to UTF-8
+    
     try:
-        decoded_content = content.decode('utf-8')
-    except UnicodeDecodeError:
-        # If UTF-8 decoding fails, try to decode as ISO-8859-1 (or another encoding if needed)
-        decoded_content = content.decode('iso-8859-1')
-
-    # Create a new Response object with the decoded content
-    flask_response = Response(decoded_content, response.status_code, headers)
-
-    return flask_response
+        response = requests.request(
+            method=request.method,
+            url=url,
+            headers=headers,
+            data=request.get_data(),
+            cookies=request.cookies,
+            allow_redirects=False)
+        
+        content_encoding = response.headers.get('Content-Encoding')
+        
+        def generate():
+            if content_encoding == 'gzip':
+                buffer = BytesIO(response.content)
+                with gzip.GzipFile(fileobj=buffer, mode='rb') as f:
+                    yield f.read()
+            else:
+                yield response.content
+        
+        excluded_headers = ['content-encoding', 'content-length', 'transfer-encoding', 'connection']
+        headers = [(name, value) for (name, value) in response.headers.items()
+                   if name.lower() not in excluded_headers]
+        
+        # Ensure Content-Type is set to text/html; charset=utf-8
+        content_type = 'text/html; charset=utf-8'
+        headers = [h for h in headers if h[0].lower() != 'content-type']
+        headers.append(('Content-Type', content_type))
+        
+        return Response(stream_with_context(generate()), 
+                        response.status_code, 
+                        headers)
 
 
 
