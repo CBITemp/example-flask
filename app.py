@@ -25,12 +25,17 @@ def proxy(path):
             headers=headers,
             data=request.get_data(),
             cookies=request.cookies,
-            allow_redirects=False)
+            allow_redirects=False,
+            stream=True)
         
-        # Log response details for debugging
-        app.logger.info(f"Response Status Code: {response.status_code}")
-        app.logger.info(f"Response Content-Type: {response.headers.get('Content-Type')}")
-        app.logger.info(f"First 100 bytes of response: {response.content[:100]}")
+        def generate():
+            try:
+                for chunk in response.iter_content(chunk_size=1024):
+                    if chunk:
+                        yield chunk
+            except Exception as e:
+                app.logger.error(f"Error in generate: {str(e)}")
+                yield str(e).encode('utf-8')
         
         # Filter out headers not to be forwarded
         excluded_headers = ['content-length', 'transfer-encoding', 'connection']
@@ -40,16 +45,7 @@ def proxy(path):
         # Flatten header list to dictionary
         headers = {name: ", ".join(values) for name, values in headers}
         
-        return Response(response.content, response.status_code, headers)
-    
-    except requests.RequestException as e:
-        app.logger.error(f"Request error: {str(e)}")
-        return jsonify({"error": "Request to Telegraph failed", "details": str(e)}), 500
-    
-    except Exception as e:
-        app.logger.error(f"Unexpected error: {str(e)}")
-        app.logger.error(traceback.format_exc())
-        return jsonify({"error": "An unexpected error occurred", "details": str(e)}), 500
+        return Response(stream_with_context(generate()), response.status_code, headers)
 
 
 @app.route("/")
