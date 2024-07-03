@@ -38,8 +38,8 @@ def proxy(path):
                          if name.lower() not in excluded_headers}
 
     # # Set the Content-Type header if it exists
-    # if 'content-type' in response.headers:
-    #     forwarded_headers['Content-Type'] = response.headers['Content-Type']
+    if 'content-type' in response.headers:
+         forwarded_headers['Content-Type'] = response.headers['Content-Type']
 
     return Response(response.content, response.status_code, headers=forwarded_headers)
 
