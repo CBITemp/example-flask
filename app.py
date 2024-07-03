@@ -1,17 +1,17 @@
+import gevent.monkey
+gevent.monkey.patch_all()
+
 import requests
-from flask import Flask, jsonify, request, Response, stream_with_context
+from flask import Flask, jsonify, request, Response
 from flask_cors import CORS
 import json
 import os
-import traceback
-import gzip
-from io import BytesIO
 
 app = Flask(__name__)
 CORS(app)
 
 TELEGRAPH_URL = 'https://api.openai.com'
-    
+
 @app.route('/', defaults={'path': ''}, methods=['GET', 'POST', 'PUT', 'DELETE'])
 @app.route('/<path:path>', methods=['GET', 'POST', 'PUT', 'DELETE'])
 def proxy(path):
@@ -20,46 +20,32 @@ def proxy(path):
     headers = dict(request.headers)
     headers['Host'] = TELEGRAPH_URL.replace('https://', '')
     headers['Access-Control-Allow-Origin'] = headers.get('Access-Control-Allow-Origin') or "*"
-    
-    try:
-        response = requests.request(
-            method=request.method,
-            url=url,
-            headers=headers,
-            data=request.get_data(),
-            cookies=request.cookies,
-            allow_redirects=False)
-        
-        # Check for Content-Encoding header
-        content_encoding = response.headers.get('Content-Encoding')
-        
-        def generate():
-            if content_encoding == 'gzip':
-                # Decompress gzipped content
-                buffer = BytesIO(response.content)
-                with gzip.GzipFile(fileobj=buffer, mode='rb') as f:
-                    yield f.read()
-            else:
-                # If not gzipped, yield content as is
-                yield response.content
-        
-        # Filter out headers not to be forwarded
-        excluded_headers = ['content-encoding', 'content-length', 'transfer-encoding', 'connection']
-        headers = [(name, value) for (name, value) in response.headers.items()
-                   if name.lower() not in excluded_headers]
-        
-        return Response(stream_with_context(generate()), 
-                        response.status_code, 
-                        headers)
-    
-    except requests.RequestException as e:
-        app.logger.error(f"Request error: {str(e)}")
-        return jsonify({"error": "Request to Telegraph failed", "details": str(e)}), 500
-    
-    except Exception as e:
-        app.logger.error(f"Unexpected error: {str(e)}")
-        app.logger.error(traceback.format_exc())
-        return jsonify({"error": "An unexpected error occurred", "details": str(e)}), 500
+
+    response = requests.request(
+        method=request.method,
+        url=url,
+        headers=headers,
+        data=request.get_data(),
+        cookies=request.cookies,
+        allow_redirects=False,
+        stream=False)
+
+    def generate():
+        for chunk in response.iter_content(chunk_size=1024):
+            if chunk:
+                yield chunk
+
+    # Filter out headers not to be forwarded
+    excluded_headers = ['content-length', 'transfer-encoding', 'connection']
+    headers = [(name, value) for (name, value) in response.raw.headers.items()
+               if name.lower() not in excluded_headers]
+
+    # Flatten header list to dictionary
+    headers = {name: ", ".join(values) for name, values in headers}
+
+    #return Response(stream_with_context(generate()), response.status_code)
+    return Response(response.content, response.status_code)
+
 
 
 # @app.route("/")
