@@ -55,11 +55,14 @@ def get_my_ip():
 
 @app.route("/get_outbound_ip", methods=["GET"])
 def get_outbound_ip():
-    url = "https://xajani9389.pythonanywhere.com/get_my_ip"
-    response = requests.get(url)
+    # Define the API endpoint
+    url = 'https://api.ipify.org/?format=json'
 
-    result = response.json()
-    return result, 200
+    # Send a GET request to the API
+    response = requests.get(url)
+    ip = response.json()
+
+    return jsonify({'ip': ip}), 200
 
 @app.route("/OpenAIChat", methods=["GET"])
 def OpenAIChat():
