@@ -19,11 +19,11 @@ def proxy(path):
     headers = {key: value for (key, value) in request.headers if key != 'Host'}
     headers['Host'] = TELEGRAPH_URL.replace('https://', '')
 
-    current_app.logger.info(f"Incoming request: {request.method} {url}")
-    current_app.logger.info(f"Request headers: {headers}")
+    app.logger.info(f"Incoming request: {request.method} {url}")
+    app.logger.info(f"Request headers: {headers}")
 
     try:
-        current_app.logger.info("Sending request to upstream server")
+        app.logger.info("Sending request to upstream server")
         response = requests.request(
             method=request.method,
             url=url,
@@ -32,35 +32,35 @@ def proxy(path):
             cookies=request.cookies,
             allow_redirects=False
         )
-        current_app.logger.info(f"Received response from upstream server. Status code: {response.status_code}")
-        current_app.logger.info(f"Response headers: {dict(response.headers)}")
+        app.logger.info(f"Received response from upstream server. Status code: {response.status_code}")
+        app.logger.info(f"Response headers: {dict(response.headers)}")
 
-        current_app.logger.info(f"Original response encoding: {response.encoding}")
+        app.logger.info(f"Original response encoding: {response.encoding}")
         response.encoding = 'utf-8'
-        current_app.logger.info("Forced response encoding to UTF-8")
+        app.logger.info("Forced response encoding to UTF-8")
 
         def generate():
-            current_app.logger.info("Starting to generate response content")
+            app.logger.info("Starting to generate response content")
             for chunk in response.iter_content(chunk_size=4096, decode_unicode=True):
                 if chunk:
-                    current_app.logger.info(f"Processing chunk. Type: {type(chunk)}, Length: {len(chunk)}")
-                    current_app.logger.info(f"Sample of chunk content: {chunk[:100]}")
+                    app.logger.info(f"Processing chunk. Type: {type(chunk)}, Length: {len(chunk)}")
+                    app.logger.info(f"Sample of chunk content: {chunk[:100]}")
                     yield chunk
-            current_app.logger.info("Finished generating response content")
+            app.logger.info("Finished generating response content")
 
         excluded_headers = ['content-encoding', 'content-length', 'transfer-encoding', 'connection']
         headers = [(name, value) for (name, value) in response.raw.headers.items()
                    if name.lower() not in excluded_headers]
-        current_app.logger.info(f"Filtered response headers: {headers}")
+        app.logger.info(f"Filtered response headers: {headers}")
 
         content_type = response.headers.get('Content-Type', 'text/plain; charset=utf-8')
-        current_app.logger.info(f"Setting Content-Type to: {content_type}")
+        app.logger.info(f"Setting Content-Type to: {content_type}")
 
-        current_app.logger.info("Preparing to send response to client")
+        app.logger.info("Preparing to send response to client")
         return Response(generate(), status=response.status_code, headers=headers, content_type=content_type)
 
     except requests.RequestException as e:
-        current_app.logger.error(f"Request exception occurred: {str(e)}")
+        app.logger.error(f"Request exception occurred: {str(e)}")
         return str(e), 500
 
 
