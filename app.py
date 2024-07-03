@@ -49,7 +49,7 @@ def proxy(path):
     headers = [h for h in headers if h[0].lower() != 'content-type']
     headers.append(('Content-Type', content_type))
     
-    return Response(stream_with_context(generate()), 
+    return Response(response.content, 
                     response.status_code, 
                    )
 
