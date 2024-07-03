@@ -30,24 +30,8 @@ def proxy(path):
         cookies=request.cookies,
         allow_redirects=False)
     
-    content_encoding = response.headers.get('Content-Encoding')
-    
-    def generate():
-        if content_encoding == 'gzip':
-            buffer = BytesIO(response.content)
-            with gzip.GzipFile(fileobj=buffer, mode='rb') as f:
-                yield f.read()
-        else:
-            yield response.content
-    
-    excluded_headers = ['content-encoding', 'content-length', 'transfer-encoding', 'connection']
-    headers = [(name, value) for (name, value) in response.headers.items()
-               if name.lower() not in excluded_headers]
-    
-    # Ensure Content-Type is set to text/html; charset=utf-8
-    content_type = 'text/html; charset=utf-8'
-    headers = [h for h in headers if h[0].lower() != 'content-type']
-    headers.append(('Content-Type', content_type))
+    print(response.content)   
+    app.logger.debug(response.content)
     
     return Response(response.content, 
                     response.status_code, 
