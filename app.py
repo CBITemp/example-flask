@@ -7,61 +7,41 @@ import os
 app = Flask(__name__)
 CORS(app)
 
-# Configure Flask logger
-app.logger.setLevel('INFO')
-
 TELEGRAPH_URL = 'https://api.openai.com'
 
 @app.route('/', defaults={'path': ''}, methods=['GET', 'POST', 'PUT', 'DELETE'])
 @app.route('/<path:path>', methods=['GET', 'POST', 'PUT', 'DELETE'])
 def proxy(path):
-    url = f"{TELEGRAPH_URL}/{path}"
-    headers = {key: value for (key, value) in request.headers if key != 'Host'}
+    global TELEGRAPH_URL
+    url = TELEGRAPH_URL + '/' + path
+    headers = dict(request.headers)
     headers['Host'] = TELEGRAPH_URL.replace('https://', '')
+    headers['Access-Control-Allow-Origin'] = headers.get('Access-Control-Allow-Origin') or "*"
 
-    app.logger.info(f"Incoming request: {request.method} {url}")
-    app.logger.info(f"Request headers: {headers}")
+    response = requests.request(
+        method=request.method,
+        url=url,
+        headers=headers,
+        data=request.get_data(),
+        cookies=request.cookies,
+        allow_redirects=False,
+        stream=False)
 
-    try:
-        app.logger.info("Sending request to upstream server")
-        response = requests.request(
-            method=request.method,
-            url=url,
-            headers=headers,
-            data=request.get_data(),
-            cookies=request.cookies,
-            allow_redirects=False
-        )
-        app.logger.info(f"Received response from upstream server. Status code: {response.status_code}")
-        app.logger.info(f"Response headers: {dict(response.headers)}")
+    def generate():
+        for chunk in response.iter_content(chunk_size=1024):
+            if chunk:
+                yield chunk
 
-        app.logger.info(f"Original response encoding: {response.encoding}")
-        response.encoding = 'utf-8'
-        app.logger.info("Forced response encoding to UTF-8")
+    # Filter out headers not to be forwarded
+    excluded_headers = ['content-length', 'transfer-encoding', 'connection']
+    forwarded_headers = {name: value for name, value in response.headers.items()
+                         if name.lower() not in excluded_headers}
 
-        def generate():
-            app.logger.info("Starting to generate response content")
-            for chunk in response.iter_content(chunk_size=4096, decode_unicode=True):
-                if chunk:
-                    app.logger.info(f"Processing chunk. Type: {type(chunk)}, Length: {len(chunk)}")
-                    app.logger.info(f"Sample of chunk content: {chunk[:100]}")
-                    yield chunk
-            app.logger.info("Finished generating response content")
+    # Set the Content-Type header if it exists
+    if 'content-type' in response.headers:
+        forwarded_headers['Content-Type'] = response.headers['Content-Type']
 
-        excluded_headers = ['content-encoding', 'content-length', 'transfer-encoding', 'connection']
-        headers = [(name, value) for (name, value) in response.raw.headers.items()
-                   if name.lower() not in excluded_headers]
-        app.logger.info(f"Filtered response headers: {headers}")
-
-        content_type = response.headers.get('Content-Type', 'text/plain; charset=utf-8')
-        app.logger.info(f"Setting Content-Type to: {content_type}")
-
-        app.logger.info("Preparing to send response to client")
-        return Response(generate(), status=response.status_code, headers=headers, content_type=content_type)
-
-    except requests.RequestException as e:
-        app.logger.error(f"Request exception occurred: {str(e)}")
-        return str(e), 500
+    return Response(response.content, response.status_code, headers=forwarded_headers)
 
 
 
