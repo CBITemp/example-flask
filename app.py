@@ -33,7 +33,7 @@ def proxy(path):
                 yield chunk
 
     # Filter out headers not to be forwarded
-    excluded_headers = ['content-length', 'transfer-encoding', 'connection']
+    excluded_headers = ['content-length', 'transfer-encoding', 'connection', 'content-encoding']
     forwarded_headers = {name: value for name, value in response.headers.items()
                          if name.lower() not in excluded_headers}
 
