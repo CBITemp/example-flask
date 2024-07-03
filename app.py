@@ -21,7 +21,7 @@ def proxy(path):
     headers = dict(request.headers)
     headers['Host'] = TELEGRAPH_URL.replace('https://', '')
     headers['Access-Control-Allow-Origin'] = headers.get('Access-Control-Allow-Origin') or "*"
-    
+
     response = requests.request(
         method=request.method,
         url=url,
@@ -29,19 +29,30 @@ def proxy(path):
         data=request.get_data(),
         cookies=request.cookies,
         allow_redirects=False,
-        stream=True)
+        stream=True  # Changed to True to handle streaming responses
+    )
 
     # Filter out headers not to be forwarded
     excluded_headers = ['content-encoding', 'content-length', 'transfer-encoding', 'connection']
     headers = [(name, value) for (name, value) in response.raw.headers.items()
                if name.lower() not in excluded_headers]
 
-    # Handle content encoding (e.g., gzip)
-    content = response.raw.read()
+    # Decompress if the content is gzipped
+    content = response.content
     if response.headers.get('Content-Encoding') == 'gzip':
-        content = gzip.GzipFile(fileobj=io.BytesIO(content)).read()
+        content = gzip.decompress(content)
 
-    return Response(content, response.status_code, headers)
+    # Decode content to UTF-8
+    try:
+        decoded_content = content.decode('utf-8')
+    except UnicodeDecodeError:
+        # If UTF-8 decoding fails, try to decode as ISO-8859-1 (or another encoding if needed)
+        decoded_content = content.decode('iso-8859-1')
+
+    # Create a new Response object with the decoded content
+    flask_response = Response(decoded_content, response.status_code, headers)
+
+    return flask_response
 
 
 
