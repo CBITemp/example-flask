@@ -54,7 +54,7 @@ def proxy(path):
         # Flatten header list to dictionary
         headers = {name: ", ".join(values) for name, values in headers}
         
-        return Response(stream_with_context(generate()), response.status_code, headers)
+        return Response(stream_with_context(generate()), response.status_code)
     
     except requests.RequestException as e:
         app.logger.error(f"Request error: {str(e)}")
