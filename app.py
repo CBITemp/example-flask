@@ -4,6 +4,9 @@ from flask_cors import CORS
 import json
 import os
 import traceback
+import gzip
+from io import BytesIO
+
 app = Flask(__name__)
 CORS(app)
 
@@ -25,27 +28,29 @@ def proxy(path):
             headers=headers,
             data=request.get_data(),
             cookies=request.cookies,
-            allow_redirects=False,
-            stream=True)
+            allow_redirects=False)
+        
+        # Check for Content-Encoding header
+        content_encoding = response.headers.get('Content-Encoding')
         
         def generate():
-            try:
-                for chunk in response.iter_content(chunk_size=1024):
-                    if chunk:
-                        yield chunk
-            except Exception as e:
-                app.logger.error(f"Error in generate: {str(e)}")
-                yield str(e).encode('utf-8')
+            if content_encoding == 'gzip':
+                # Decompress gzipped content
+                buffer = BytesIO(response.content)
+                with gzip.GzipFile(fileobj=buffer, mode='rb') as f:
+                    yield f.read()
+            else:
+                # If not gzipped, yield content as is
+                yield response.content
         
         # Filter out headers not to be forwarded
-        excluded_headers = ['content-length', 'transfer-encoding', 'connection']
-        headers = [(name, value) for (name, value) in response.raw.headers.items()
+        excluded_headers = ['content-encoding', 'content-length', 'transfer-encoding', 'connection']
+        headers = [(name, value) for (name, value) in response.headers.items()
                    if name.lower() not in excluded_headers]
         
-        # Flatten header list to dictionary
-        headers = {name: ", ".join(values) for name, values in headers}
-        
-        return Response(stream_with_context(generate()), response.status_code)
+        return Response(stream_with_context(generate()), 
+                        response.status_code, 
+                        headers)
     
     except requests.RequestException as e:
         app.logger.error(f"Request error: {str(e)}")
