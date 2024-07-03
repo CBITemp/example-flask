@@ -8,17 +8,8 @@ app = Flask(__name__)
 CORS(app)
 
 TELEGRAPH_URL = 'https://api.openai.com'
-
-@app.route('/', defaults={'path': ''}, methods=['GET', 'POST', 'PUT', 'DELETE'])
-@app.route('/<path:path>', methods=['GET', 'POST', 'PUT', 'DELETE'])
-def proxy(path):
-    global TELEGRAPH_URL
-    url = TELEGRAPH_URL + '/' + path
-    headers = dict(request.headers)
-    headers['Host'] = TELEGRAPH_URL.replace('https://', '')
-    headers['Access-Control-Allow-Origin'] = headers.get('Access-Control-Allow-Origin') or "*"
     
-    @app.route('/', defaults={'path': ''}, methods=['GET', 'POST', 'PUT', 'DELETE'])
+@app.route('/', defaults={'path': ''}, methods=['GET', 'POST', 'PUT', 'DELETE'])
 @app.route('/<path:path>', methods=['GET', 'POST', 'PUT', 'DELETE'])
 def proxy(path):
     global TELEGRAPH_URL
