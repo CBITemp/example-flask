@@ -62,9 +62,9 @@ def proxy(path):
         return jsonify({"error": "An unexpected error occurred", "details": str(e)}), 500
 
 
-@app.route("/")
-def hello_world():
-    return "Connect Success"
+# @app.route("/")
+# def hello_world():
+#     return "Connect Success"
 
 @app.route("/get_my_ip", methods=["GET"])
 def get_my_ip():
@@ -83,37 +83,37 @@ def get_outbound_ip():
 
     return jsonify({'ip': ip}), 200
 
-@app.route("/OpenAIChat", methods=["GET"])
-def OpenAIChat():
-    target_model = request.args.get("model", "")
-    target_prompt = request.args.get("prompt", "")
-    APIKey = request.args.get("apikey", "")
+# @app.route("/OpenAIChat", methods=["GET"])
+# def OpenAIChat():
+#     target_model = request.args.get("model", "")
+#     target_prompt = request.args.get("prompt", "")
+#     APIKey = request.args.get("apikey", "")
 
-    url = 'https://api.openai.com/v1/chat/completions'
-    headers = {
-        'Content-Type': 'application/json',
-        'Authorization': f'Bearer {APIKey}'
-    }
-    data = {
-        "model": target_model,
-        "messages": [
-            {"role": "user", "content": target_prompt}
-        ],
-        "max_tokens": 1024,
-        "temperature": 0.5,
-        "top_p": 1
-    }
-    try:
-        print("start")
-        response = requests.post(url, headers=headers, json=data)
-        print(response.status_code)
-        if response.status_code == 200:
-            result = response.json()
-            return result
-        else:
-            return "Empty"
-    except Exception as e:
-        return (str(e))
+#     url = 'https://api.openai.com/v1/chat/completions'
+#     headers = {
+#         'Content-Type': 'application/json',
+#         'Authorization': f'Bearer {APIKey}'
+#     }
+#     data = {
+#         "model": target_model,
+#         "messages": [
+#             {"role": "user", "content": target_prompt}
+#         ],
+#         "max_tokens": 1024,
+#         "temperature": 0.5,
+#         "top_p": 1
+#     }
+#     try:
+#         print("start")
+#         response = requests.post(url, headers=headers, json=data)
+#         print(response.status_code)
+#         if response.status_code == 200:
+#             result = response.json()
+#             return result
+#         else:
+#             return "Empty"
+#     except Exception as e:
+#         return (str(e))
 
 
 
