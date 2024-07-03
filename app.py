@@ -51,7 +51,7 @@ def proxy(path):
     
     return Response(stream_with_context(generate()), 
                     response.status_code, 
-                    headers)
+                   )
 
 
 
