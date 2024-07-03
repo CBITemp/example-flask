@@ -18,6 +18,15 @@ def proxy(path):
     headers['Host'] = TELEGRAPH_URL.replace('https://', '')
     headers['Access-Control-Allow-Origin'] = headers.get('Access-Control-Allow-Origin') or "*"
     
+    @app.route('/', defaults={'path': ''}, methods=['GET', 'POST', 'PUT', 'DELETE'])
+@app.route('/<path:path>', methods=['GET', 'POST', 'PUT', 'DELETE'])
+def proxy(path):
+    global TELEGRAPH_URL
+    url = TELEGRAPH_URL + '/' + path
+    headers = dict(request.headers)
+    headers['Host'] = TELEGRAPH_URL.replace('https://', '')
+    headers['Access-Control-Allow-Origin'] = headers.get('Access-Control-Allow-Origin') or "*"
+    
     try:
         response = requests.request(
             method=request.method,
@@ -46,6 +55,15 @@ def proxy(path):
         headers = {name: ", ".join(values) for name, values in headers}
         
         return Response(stream_with_context(generate()), response.status_code, headers)
+    
+    except requests.RequestException as e:
+        app.logger.error(f"Request error: {str(e)}")
+        return jsonify({"error": "Request to Telegraph failed", "details": str(e)}), 500
+    
+    except Exception as e:
+        app.logger.error(f"Unexpected error: {str(e)}")
+        app.logger.error(traceback.format_exc())
+        return jsonify({"error": "An unexpected error occurred", "details": str(e)}), 500
 
 
 @app.route("/")
