@@ -1,16 +1,12 @@
-import gevent.monkey
-gevent.monkey.patch_all()
-
 import requests
-from flask import Flask, jsonify, request, Response, stream_with_context
+from flask import Flask, jsonify, request, Response
 from flask_cors import CORS
 import json
 import os
-import gzip
-import io
 
 app = Flask(__name__)
 CORS(app)
+
 TELEGRAPH_URL = 'https://api.openai.com'
 
 @app.route('/', defaults={'path': ''}, methods=['GET', 'POST', 'PUT', 'DELETE'])
@@ -21,21 +17,31 @@ def proxy(path):
     headers = dict(request.headers)
     headers['Host'] = TELEGRAPH_URL.replace('https://', '')
     headers['Access-Control-Allow-Origin'] = headers.get('Access-Control-Allow-Origin') or "*"
-    
+
     response = requests.request(
         method=request.method,
         url=url,
         headers=headers,
         data=request.get_data(),
         cookies=request.cookies,
-        allow_redirects=False)
-    
-    print(response.content)   
-    app.logger.debug(response.content)
-    
-    return Response(response.content, 
-                    response.status_code, 
-                   )
+        allow_redirects=False,
+        stream=False)
+
+    def generate():
+        for chunk in response.iter_content(chunk_size=1024):
+            if chunk:
+                yield chunk
+
+    # Filter out headers not to be forwarded
+    excluded_headers = ['content-length', 'transfer-encoding', 'connection']
+    headers = [(name, value) for (name, value) in response.raw.headers.items()
+               if name.lower() not in excluded_headers]
+
+    # Flatten header list to dictionary
+    headers = {name: ", ".join(values) for name, values in headers}
+
+    #return Response(stream_with_context(generate()), response.status_code)
+    return Response(response.content, response.status_code)
 
 
 
