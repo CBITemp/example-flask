@@ -25,8 +25,7 @@ def proxy(path):
         data=request.get_data(),
         cookies=request.cookies,
         allow_redirects=False,
-        stream=False,
-        timeout=60)
+        stream=False)
 
     def generate():
         for chunk in response.iter_content(chunk_size=1024):
