@@ -45,9 +45,9 @@ def proxy(path):
 
 
 
-# @app.route("/")
-# def hello_world():
-#     return "Connect Success"
+@app.route("/")
+def hello_world():
+    return "Connect Success"
 
 @app.route("/get_my_ip", methods=["GET"])
 def get_my_ip():
